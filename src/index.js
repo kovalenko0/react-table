@@ -129,6 +129,9 @@ export default class ReactTable extends Methods(Lifecycle(Component)) {
       currentlyResizing,
     } = resolvedState
 
+    const frozenColumns = allVisibleColumns.filter(c => c.frozen)
+    const notFrozenColumns = allVisibleColumns.filter(c => !c.frozen)
+
     // Pagination
     const startRow = pageSize * page
     const endRow = startRow + pageSize
@@ -171,7 +174,18 @@ export default class ReactTable extends Methods(Lifecycle(Component)) {
         return _.getFirstDefined(resizedColumn.value, d.width, d.minWidth)
       })
     )
-
+    const frozenColumnMinWidth = _.sum(
+      frozenColumns.map(d => {
+        const resizedColumn = resized.find(x => x.id === d.id) || {}
+        return _.getFirstDefined(resizedColumn.value, d.width, d.minWidth)
+      })
+    )
+    const notFrozenColumnsMinWidth = _.sum(
+      notFrozenColumns.map(d => {
+        const resizedColumn = resized.find(x => x.id === d.id) || {}
+        return _.getFirstDefined(resizedColumn.value, d.width, d.minWidth)
+      })
+    )
     let rowIndex = -1
 
     const finalState = {
@@ -189,7 +203,7 @@ export default class ReactTable extends Methods(Lifecycle(Component)) {
 
     // Visual Components
 
-    const makeHeaderGroups = () => {
+    const makeHeaderGroups = (options = {}) => {
       const theadGroupProps = _.splitProps(
         getTheadGroupProps(finalState, undefined, undefined, this)
       )
@@ -283,19 +297,22 @@ export default class ReactTable extends Methods(Lifecycle(Component)) {
       )
     }
 
-    const makeHeaders = () => {
+    const makeHeaders = (options = {}) => {
       const theadProps = _.splitProps(
         getTheadProps(finalState, undefined, undefined, this)
       )
       const theadTrProps = _.splitProps(
         getTheadTrProps(finalState, undefined, undefined, this)
       )
+      const columns = options.useFrozenColumns ? frozenColumns : notFrozenColumns
+      const rowMinWidth = options.useFrozenColumns ? frozenColumnMinWidth : notFrozenColumnsMinWidth
+      const sizeStyles = options.useFrozenColumns ? {width: `${rowMinWidth}px`} : {minWidth: `${rowMinWidth}px`}
       return (
         <TheadComponent
           className={classnames('-header', theadProps.className)}
           style={{
             ...theadProps.style,
-            minWidth: `${rowMinWidth}px`,
+            ...sizeStyles
           }}
           {...theadProps.rest}
         >
@@ -304,7 +321,7 @@ export default class ReactTable extends Methods(Lifecycle(Component)) {
             style={theadTrProps.style}
             {...theadTrProps.rest}
           >
-            {allVisibleColumns.map(makeHeader)}
+            {columns.map(makeHeader)}
           </TrComponent>
         </TheadComponent>
       )
@@ -395,19 +412,22 @@ export default class ReactTable extends Methods(Lifecycle(Component)) {
       )
     }
 
-    const makeFilters = () => {
+    const makeFilters = (options = {}) => {
       const theadFilterProps = _.splitProps(
         getTheadFilterProps(finalState, undefined, undefined, this)
       )
       const theadFilterTrProps = _.splitProps(
         getTheadFilterTrProps(finalState, undefined, undefined, this)
       )
+      const columns = options.useFrozenColumns ? frozenColumns : notFrozenColumns
+      const rowMinWidth = options.useFrozenColumns ? frozenColumnMinWidth : notFrozenColumnsMinWidth
+      const sizeStyles = options.useFrozenColumns ? {width: `${rowMinWidth}px`} : {minWidth: `${rowMinWidth}px`}
       return (
         <TheadComponent
           className={classnames('-filters', theadFilterProps.className)}
           style={{
             ...theadFilterProps.style,
-            minWidth: `${rowMinWidth}px`,
+            ...sizeStyles
           }}
           {...theadFilterProps.rest}
         >
@@ -416,7 +436,7 @@ export default class ReactTable extends Methods(Lifecycle(Component)) {
             style={theadFilterTrProps.style}
             {...theadFilterTrProps.rest}
           >
-            {allVisibleColumns.map(makeFilter)}
+            {columns.map(makeFilter)}
           </TrComponent>
         </TheadComponent>
       )
@@ -495,7 +515,7 @@ export default class ReactTable extends Methods(Lifecycle(Component)) {
       )
     }
 
-    const makePageRow = (row, i, path = []) => {
+    const makePageRow = (row, i, path = [], options = {}) => {
       const rowInfo = {
         original: row[originalKey],
         row: row,
@@ -512,6 +532,7 @@ export default class ReactTable extends Methods(Lifecycle(Component)) {
       const trProps = _.splitProps(
         getTrProps(finalState, rowInfo, undefined, this)
       )
+      const columns = options.useFrozenColumns ? frozenColumns : notFrozenColumns
       return (
         <TrGroupComponent key={rowInfo.nestingPath.join('_')} {...trGroupProps}>
           <TrComponent
@@ -522,7 +543,7 @@ export default class ReactTable extends Methods(Lifecycle(Component)) {
             style={trProps.style}
             {...trProps.rest}
           >
-            {allVisibleColumns.map((column, i2) => {
+            {columns.map((column, i2) => {
               const resizedCol = resized.find(x => x.id === column.id) || {}
               const show =
                 typeof column.show === 'function' ? column.show() : column.show
@@ -731,7 +752,12 @@ export default class ReactTable extends Methods(Lifecycle(Component)) {
       )
     }
 
-    const makePadRow = (row, i) => {
+    const makePadRow = (row, i, options = {}) => {
+      const columns = options.useFrozenColumns ? frozenColumns : notFrozenColumns
+      const state = {
+        ...finalState,
+        columns
+      }
       const trGroupProps = getTrGroupProps(
         finalState,
         undefined,
@@ -751,7 +777,7 @@ export default class ReactTable extends Methods(Lifecycle(Component)) {
             )}
             style={trProps.style || {}}
           >
-            {allVisibleColumns.map(makePadColumn)}
+            {columns.map(makePadColumn)}
           </TrComponent>
         </TrGroupComponent>
       )
@@ -813,12 +839,15 @@ export default class ReactTable extends Methods(Lifecycle(Component)) {
       const tFootTrProps = _.splitProps(
         getTfootTrProps(finalState, undefined, undefined, this)
       )
+      const columns = options.useFrozenColumns ? frozenColumns : notFrozenColumns
+      const rowMinWidth = options.useFrozenColumns ? frozenColumnMinWidth : notFrozenColumnsMinWidth
+      const sizeStyles = options.useFrozenColumns ? {width: `${rowMinWidth}px`} : {minWidth: `${rowMinWidth}px`}
       return (
         <TfootComponent
           className={tFootProps.className}
           style={{
             ...tFootProps.style,
-            minWidth: `${rowMinWidth}px`,
+            ...sizeStyles
           }}
           {...tFootProps.rest}
         >
@@ -827,7 +856,7 @@ export default class ReactTable extends Methods(Lifecycle(Component)) {
             style={tFootTrProps.style}
             {...tFootTrProps.rest}
           >
-            {allVisibleColumns.map(makeColumnFooter)}
+            {columns.map(makeColumnFooter)}
           </TrComponent>
         </TfootComponent>
       )
@@ -927,6 +956,7 @@ export default class ReactTable extends Methods(Lifecycle(Component)) {
 
     const makeTable = () => {
       const pagination = makePagination()
+
       return (
         <div
           className={classnames('ReactTable', className, rootProps.className)}
@@ -941,30 +971,62 @@ export default class ReactTable extends Methods(Lifecycle(Component)) {
               {pagination}
             </div>
             : null}
-          <TableComponent
-            className={classnames(
-              tableProps.className,
-              currentlyResizing ? 'rt-resizing' : ''
-            )}
-            style={tableProps.style}
-            {...tableProps.rest}
-          >
-            {hasHeaderGroups ? makeHeaderGroups() : null}
-            {makeHeaders()}
-            {hasFilters ? makeFilters() : null}
-            <TbodyComponent
-              className={classnames(tBodyProps.className)}
+          <div style={{display: 'flex'}}>
+            <TableComponent
+              className={classnames(
+                tableProps.className,
+                currentlyResizing ? 'rt-resizing' : '',
+                'frozen-columns'
+              )}
               style={{
-                ...tBodyProps.style,
-                minWidth: `${rowMinWidth}px`,
+                ...tableProps.style,
+                flexBasis: frozenColumnMinWidth,
+                flexGrow: 0,
+                boxShadow: 'rgba(0, 0, 0, 0.02) -1px 0px inset'
               }}
-              {...tBodyProps.rest}
-            >
-              {pageRows.map((d, i) => makePageRow(d, i))}
-              {padRows.map(makePadRow)}
-            </TbodyComponent>
-            {hasColumnFooter ? makeColumnFooters() : null}
-          </TableComponent>
+              {...tableProps.rest}
+              >
+                {hasHeaderGroups ? makeHeaderGroups({useFrozenColumns: true}) : null}
+                {makeHeaders({useFrozenColumns: true})}
+                {hasFilters ? makeFilters({useFrozenColumns: true}) : null}
+                <TbodyComponent
+                  className={classnames(tBodyProps.className)}
+                  style={{
+                    ...tBodyProps.style,
+                    width: `${frozenColumnMinWidth}px`,
+                  }}
+                  {...tBodyProps.rest}
+                  >
+                    {pageRows.map((d, i) => makePageRow(d, i, [], {useFrozenColumns: true}))}
+                    {padRows.map((d, i) => makePadRow(d, i, {useFrozenColumns: true}))}
+                </TbodyComponent>
+                {hasColumnFooter ? makeColumnFooters({useFrozenColumns: true}) : null}
+            </TableComponent>
+            <TableComponent
+              className={classnames(
+                tableProps.className,
+                currentlyResizing ? 'rt-resizing' : ''
+              )}
+              style={tableProps.style}
+              {...tableProps.rest}
+              >
+                {hasHeaderGroups ? makeHeaderGroups() : null}
+                {makeHeaders()}
+                {hasFilters ? makeFilters() : null}
+                <TbodyComponent
+                  className={classnames(tBodyProps.className)}
+                  style={{
+                    ...tBodyProps.style,
+                    minWidth: `${notFrozenColumnsMinWidth}px`,
+                  }}
+                  {...tBodyProps.rest}
+                  >
+                    {pageRows.map((d, i) => makePageRow(d, i))}
+                    {padRows.map(makePadRow)}
+                </TbodyComponent>
+                {hasColumnFooter ? makeColumnFooters() : null}
+            </TableComponent>
+          </div>
           {showPagination && showPaginationBottom
             ? <div className='pagination-bottom'>
               {pagination}
